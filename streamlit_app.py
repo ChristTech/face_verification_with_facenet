@@ -10,9 +10,12 @@ from sklearn.preprocessing import LabelEncoder
 from mtcnn.mtcnn import MTCNN
 import streamlit.runtime
 
-# Set the title of the application
-st.title("Facial Verification and Anti-Spoofing System")
-
+# --- Branding ---
+st.image("https://avatars.githubusercontent.com/u/9919?s=200&v=4", width=80)  # Example: GitHub logo, replace with your logo path or URL
+st.markdown(
+    "<h1 style='color:#4F8BF9; font-size:2.5rem;'>Facial Verification and Anti-Spoofing System</h1>",
+    unsafe_allow_html=True,
+)
 st.write("Upload an image or use your webcam to perform facial verification and anti-spoofing.")
 
 # --- Load Models and Encoder (Cache these to avoid reloading on each interaction) ---
@@ -114,12 +117,7 @@ if loaded_model is not None and encoder is not None and embedder is not None and
             # Read the uploaded image
             file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
             image = cv2.imdecode(file_bytes, 1)
-
-            # Convert the image to RGB for processing and displaying
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-            # Display the uploaded image
-            st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
 
             st.subheader("Processing Results:")
 
@@ -131,220 +129,181 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                 st.warning("No faces detected in the image.")
             else:
                 st.success(f"{len(results)} face(s) detected.")
-                # Assuming you want to process the first detected face
                 x, y, w, h = results[0]['box']
-
-                # Draw bounding box on the image copy for display
                 image_with_box = image_rgb.copy()
                 cv2.rectangle(image_with_box, (x, y), (x+w, y+h), (255, 0, 0), 5) # Red box
-
-                # Display the image with bounding box
-                st.image(image_with_box, caption="Detected Face", use_column_width=True)
-
-                # Extract the face
                 face_rgb = image_rgb[y:y+h, x:x+w]
 
                 # --- Anti-Spoofing ---
+                anti_spoofing_result = ""
+                verification_result = ""
+                predicted_class = ""
+                prediction_confidence = 0.0
+                downloadable_image = None
+
                 if midas is not None and midas_transform is not None:
                     st.write("Performing Anti-Spoofing Check...")
                     try:
-                        # Use original BGR image for MiDaS
                         depth_map = estimate_depth(image, midas, midas_transform)
-                        # Corrected slicing for depth map
                         face_depth_region = depth_map[max(0, y):min(depth_map.shape[0], y+h), max(0, x):min(depth_map.shape[1], x+w)]
                         depth_variation = np.std(face_depth_region)
-
-                        st.write(f"Depth standard deviation in face region: {depth_variation:.2f}")
-
-                        # Anti-spoofing threshold (fine-tune as needed)
-                        # This threshold should be determined based on experimentation with real and spoof data
-                        # A value around 1.0 was used in previous analysis, but might need adjustment
-                        spoofing_threshold = 1.0 # Example threshold
+                        spoofing_threshold = 1.0
 
                         if depth_variation < spoofing_threshold:
-                            st.error("⚠️ Spoof attempt detected (flat image). Verification aborted.")
+                            anti_spoofing_result = "⚠️ Spoof attempt detected (flat image). Verification aborted."
                         else:
-                            st.success("✅ Real face detected. Proceeding with verification...")
-
+                            anti_spoofing_result = "✅ Real face detected. Proceeding with verification..."
                             # --- Face Verification ---
-                            st.write("Performing Face Verification...")
-
-                            # Resize the face to the target size (160x160)
                             target_size = (160, 160)
                             face_resized = cv2.resize(face_rgb, target_size)
-
-                            # Get embedding and predict
                             test_im_embedding = get_embedding(face_resized, embedder)
-                            test_im_embedding = np.expand_dims(test_im_embedding, axis=0) # Model expects a batch
-
+                            test_im_embedding = np.expand_dims(test_im_embedding, axis=0)
                             prediction_proba = loaded_model.predict_proba(test_im_embedding)[0]
                             predicted_class_index = np.argmax(prediction_proba)
                             predicted_class = encoder.inverse_transform([predicted_class_index])[0]
                             prediction_confidence = prediction_proba[predicted_class_index]
-
-                            st.subheader("Verification Outcome:")
-                            confidence_threshold = 0.75 # 75%
-
+                            confidence_threshold = 0.75
                             if prediction_confidence >= confidence_threshold:
-                                st.write(f"Predicted Identity: **{predicted_class}**")
-                                st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                                verification_result = f"Predicted Identity: **{predicted_class}**\nConfidence: **{prediction_confidence:.2f}**"
                             else:
-                                st.write("Face not recognized")
-                                st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
-
-
+                                verification_result = f"Face not recognized\nConfidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})"
                     except Exception as e:
-                         st.error(f"An error occurred during anti-spoofing or verification: {e}")
+                        anti_spoofing_result = f"An error occurred during anti-spoofing or verification: {e}"
                 else:
-                     st.info("Anti-spoofing is disabled because the MiDaS model could not be loaded.")
-                     # Proceed with verification if anti-spoofing is skipped
-                     st.write("Performing Face Verification...")
+                    anti_spoofing_result = "Anti-spoofing is disabled because the MiDaS model could not be loaded."
+                    # Proceed with verification if anti-spoofing is skipped
+                    target_size = (160, 160)
+                    face_resized = cv2.resize(face_rgb, target_size)
+                    test_im_embedding = get_embedding(face_resized, embedder)
+                    test_im_embedding = np.expand_dims(test_im_embedding, axis=0)
+                    prediction_proba = loaded_model.predict_proba(test_im_embedding)[0]
+                    predicted_class_index = np.argmax(prediction_proba)
+                    predicted_class = encoder.inverse_transform([predicted_class_index])[0]
+                    prediction_confidence = prediction_proba[predicted_class_index]
+                    confidence_threshold = 0.75
+                    if prediction_confidence >= confidence_threshold:
+                        verification_result = f"Predicted Identity: **{predicted_class}**\nConfidence: **{prediction_confidence:.2f}**"
+                    else:
+                        verification_result = f"Face not recognized\nConfidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})"
 
-                     # Resize the face to the target size (160x160)
-                     target_size = (160, 160)
-                     face_resized = cv2.resize(face_rgb, target_size)
+                # --- Columns for Side-by-Side Display ---
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(image_rgb, caption="Original Image", use_column_width=True)
+                    st.markdown("**Anti-Spoofing Result:**")
+                    st.write(anti_spoofing_result)
+                with col2:
+                    st.image(image_with_box, caption="Detected Face", use_column_width=True)
+                    st.markdown("**Verification Result:**")
+                    st.write(verification_result)
 
-                     # Get embedding and predict
-                     test_im_embedding = get_embedding(face_resized, embedder)
-                     test_im_embedding = np.expand_dims(test_im_embedding, axis=0) # Model expects a batch
-
-                     prediction_proba = loaded_model.predict_proba(test_im_embedding)[0]
-                     predicted_class_index = np.argmax(prediction_proba)
-                     predicted_class = encoder.inverse_transform([predicted_class_index])[0]
-                     prediction_confidence = prediction_proba[predicted_class_index]
-
-                     st.subheader("Verification Outcome:")
-                     confidence_threshold = 0.75 # 75%
-
-                     if prediction_confidence >= confidence_threshold:
-                         st.write(f"Predicted Identity: **{predicted_class}**")
-                         st.write(f"Confidence: **{prediction_confidence:.2f}**")
-                     else:
-                         st.write("Face not recognized")
-                         st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
-
-
-        else:
-            st.warning("No faces detected in the image.")
+                    # --- Download Button for Result Image ---
+                    # Convert image_with_box to PIL and then to bytes
+                    downloadable_image = Image.fromarray(image_with_box)
+                    img_bytes = None
+                    from io import BytesIO
+                    buf = BytesIO()
+                    downloadable_image.save(buf, format="PNG")
+                    img_bytes = buf.getvalue()
+                    st.download_button(
+                        label="Download Result Image",
+                        data=img_bytes,
+                        file_name="face_detection_result.png",
+                        mime="image/png"
+                    )
 
     elif input_method == "Take Photo with Webcam":
         st.subheader("Take Photo with Webcam")
         captured_image = st.camera_input("Click 'Take Photo' to capture an image from your webcam.")
 
         if captured_image is not None:
-            # Read the captured image
             file_bytes = np.asarray(bytearray(captured_image.read()), dtype=np.uint8)
             image = cv2.imdecode(file_bytes, 1)
-
-            # Convert the image to RGB for processing and displaying
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-            # No need to display the captured image again, camera_input does it
 
             st.subheader("Processing Results:")
 
-            # --- Face Detection and Bounding Box ---
-            st.write("Performing Face Detection...")
             results = detector.detect_faces(image_rgb)
 
             if len(results) == 0:
                 st.warning("No faces detected in the image.")
             else:
                 st.success(f"{len(results)} face(s) detected.")
-                # Assuming you want to process the first detected face
                 x, y, w, h = results[0]['box']
-
-                # Draw bounding box on the image copy for display
                 image_with_box = image_rgb.copy()
-                cv2.rectangle(image_with_box, (x, y), (x+w, y+h), (255, 0, 0), 5) # Red box
-
-                # Display the image with bounding box
-                st.image(image_with_box, caption="Detected Face", use_column_width=True)
-
-                # Extract the face
+                cv2.rectangle(image_with_box, (x, y), (x+w, y+h), (255, 0, 0), 5)
                 face_rgb = image_rgb[y:y+h, x:x+w]
 
-                # --- Anti-Spoofing ---
+                anti_spoofing_result = ""
+                verification_result = ""
+                predicted_class = ""
+                prediction_confidence = 0.0
+                downloadable_image = None
+
                 if midas is not None and midas_transform is not None:
                     st.write("Performing Anti-Spoofing Check...")
                     try:
-                        # Use original BGR image for MiDaS
                         depth_map = estimate_depth(image, midas, midas_transform)
-                        # Corrected slicing for depth map
                         face_depth_region = depth_map[max(0, y):min(depth_map.shape[0], y+h), max(0, x):min(depth_map.shape[1], x+w)]
                         depth_variation = np.std(face_depth_region)
-
-                        st.write(f"Depth standard deviation in face region: {depth_variation:.2f}")
-
-                        # Anti-spoofing threshold (fine-tune as needed)
-                        # This threshold should be determined based on experimentation with real and spoof data
-                        # A value around 1.0 was used in previous analysis, but might need adjustment
-                        spoofing_threshold = 1.0 # Example threshold
+                        spoofing_threshold = 1.0
 
                         if depth_variation < spoofing_threshold:
-                            st.error("⚠️ Spoof attempt detected (flat image). Verification aborted.")
+                            anti_spoofing_result = "⚠️ Spoof attempt detected (flat image). Verification aborted."
                         else:
-                            st.success("✅ Real face detected. Proceeding with verification...")
-
-                            # --- Face Verification ---
-                            st.write("Performing Face Verification...")
-
-                            # Resize the face to the target size (160x160)
+                            anti_spoofing_result = "✅ Real face detected. Proceeding with verification..."
                             target_size = (160, 160)
                             face_resized = cv2.resize(face_rgb, target_size)
-
-                            # Get embedding and predict
                             test_im_embedding = get_embedding(face_resized, embedder)
-                            test_im_embedding = np.expand_dims(test_im_embedding, axis=0) # Model expects a batch
-
+                            test_im_embedding = np.expand_dims(test_im_embedding, axis=0)
                             prediction_proba = loaded_model.predict_proba(test_im_embedding)[0]
                             predicted_class_index = np.argmax(prediction_proba)
                             predicted_class = encoder.inverse_transform([predicted_class_index])[0]
                             prediction_confidence = prediction_proba[predicted_class_index]
-
-                            st.subheader("Verification Outcome:")
-                            confidence_threshold = 0.75 # 75%
-
+                            confidence_threshold = 0.75
                             if prediction_confidence >= confidence_threshold:
-                                st.write(f"Predicted Identity: **{predicted_class}**")
-                                st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                                verification_result = f"Predicted Identity: **{predicted_class}**\nConfidence: **{prediction_confidence:.2f}**"
                             else:
-                                st.write("Face not recognized")
-                                st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
-
+                                verification_result = f"Face not recognized\nConfidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})"
                     except Exception as e:
-                         st.error(f"An error occurred during anti-spoofing or verification: {e}")
+                        anti_spoofing_result = f"An error occurred during anti-spoofing or verification: {e}"
                 else:
-                     st.info("Anti-spoofing is disabled because the MiDaS model could not be loaded.")
-                     # Proceed with verification if anti-spoofing is skipped
-                     st.write("Performing Face Verification...")
+                    anti_spoofing_result = "Anti-spoofing is disabled because the MiDaS model could not be loaded."
+                    target_size = (160, 160)
+                    face_resized = cv2.resize(face_rgb, target_size)
+                    test_im_embedding = get_embedding(face_resized, embedder)
+                    test_im_embedding = np.expand_dims(test_im_embedding, axis=0)
+                    prediction_proba = loaded_model.predict_proba(test_im_embedding)[0]
+                    predicted_class_index = np.argmax(prediction_proba)
+                    predicted_class = encoder.inverse_transform([predicted_class_index])[0]
+                    prediction_confidence = prediction_proba[predicted_class_index]
+                    confidence_threshold = 0.75
+                    if prediction_confidence >= confidence_threshold:
+                        verification_result = f"Predicted Identity: **{predicted_class}**\nConfidence: **{prediction_confidence:.2f}**"
+                    else:
+                        verification_result = f"Face not recognized\nConfidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})"
 
-                     # Resize the face to the target size (160x160)
-                     target_size = (160, 160)
-                     face_resized = cv2.resize(face_rgb, target_size)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(image_rgb, caption="Original Image", use_column_width=True)
+                    st.markdown("**Anti-Spoofing Result:**")
+                    st.write(anti_spoofing_result)
+                with col2:
+                    st.image(image_with_box, caption="Detected Face", use_column_width=True)
+                    st.markdown("**Verification Result:**")
+                    st.write(verification_result)
 
-                     # Get embedding and predict
-                     test_im_embedding = get_embedding(face_resized, embedder)
-                     test_im_embedding = np.expand_dims(test_im_embedding, axis=0) # Model expects a batch
-
-                     prediction_proba = loaded_model.predict_proba(test_im_embedding)[0]
-                     predicted_class_index = np.argmax(prediction_proba)
-                     predicted_class = encoder.inverse_transform([predicted_class_index])[0]
-                     prediction_confidence = prediction_proba[predicted_class_index]
-
-                     st.subheader("Verification Outcome:")
-                     confidence_threshold = 0.75 # 75%
-
-                     if prediction_confidence >= confidence_threshold:
-                         st.write(f"Predicted Identity: **{predicted_class}**")
-                         st.write(f"Confidence: **{prediction_confidence:.2f}**")
-                     else:
-                         st.write("Face not recognized")
-                         st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
-
-        else:
-            st.warning("No faces detected in the captured image.")
-
+                    downloadable_image = Image.fromarray(image_with_box)
+                    from io import BytesIO
+                    buf = BytesIO()
+                    downloadable_image.save(buf, format="PNG")
+                    img_bytes = buf.getvalue()
+                    st.download_button(
+                        label="Download Result Image",
+                        data=img_bytes,
+                        file_name="face_detection_result.png",
+                        mime="image/png"
+                    )
 
 else:
     st.warning("Model loading failed. Please check the error messages above and ensure model files are in the correct location.")
