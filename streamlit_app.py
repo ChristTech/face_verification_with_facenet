@@ -178,15 +178,20 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                             test_im_embedding = np.expand_dims(test_im_embedding, axis=0) # Model expects a batch
 
                             prediction_proba = loaded_model.predict_proba(test_im_embedding)[0]
-                            # Find the index of the class with the highest probability
                             predicted_class_index = np.argmax(prediction_proba)
-                            # Get the class label using the encoder
                             predicted_class = encoder.inverse_transform([predicted_class_index])[0]
                             prediction_confidence = prediction_proba[predicted_class_index]
 
                             st.subheader("Verification Outcome:")
-                            st.write(f"Predicted Identity: **{predicted_class}**")
-                            st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                            confidence_threshold = 0.75 # 75%
+
+                            if prediction_confidence >= confidence_threshold:
+                                st.write(f"Predicted Identity: **{predicted_class}**")
+                                st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                            else:
+                                st.write("Face not recognized")
+                                st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
+
 
                     except Exception as e:
                          st.error(f"An error occurred during anti-spoofing or verification: {e}")
@@ -209,8 +214,14 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                      prediction_confidence = prediction_proba[predicted_class_index]
 
                      st.subheader("Verification Outcome:")
-                     st.write(f"Predicted Identity: **{predicted_class}**")
-                     st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                     confidence_threshold = 0.75 # 75%
+
+                     if prediction_confidence >= confidence_threshold:
+                         st.write(f"Predicted Identity: **{predicted_class}**")
+                         st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                     else:
+                         st.write("Face not recognized")
+                         st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
 
 
         else:
@@ -266,6 +277,8 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                         st.write(f"Depth standard deviation in face region: {depth_variation:.2f}")
 
                         # Anti-spoofing threshold (fine-tune as needed)
+                        # This threshold should be determined based on experimentation with real and spoof data
+                        # A value around 1.0 was used in previous analysis, but might need adjustment
                         spoofing_threshold = 1.0 # Example threshold
 
                         if depth_variation < spoofing_threshold:
@@ -290,8 +303,14 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                             prediction_confidence = prediction_proba[predicted_class_index]
 
                             st.subheader("Verification Outcome:")
-                            st.write(f"Predicted Identity: **{predicted_class}**")
-                            st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                            confidence_threshold = 0.75 # 75%
+
+                            if prediction_confidence >= confidence_threshold:
+                                st.write(f"Predicted Identity: **{predicted_class}**")
+                                st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                            else:
+                                st.write("Face not recognized")
+                                st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
 
                     except Exception as e:
                          st.error(f"An error occurred during anti-spoofing or verification: {e}")
@@ -314,8 +333,14 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                      prediction_confidence = prediction_proba[predicted_class_index]
 
                      st.subheader("Verification Outcome:")
-                     st.write(f"Predicted Identity: **{predicted_class}**")
-                     st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                     confidence_threshold = 0.75 # 75%
+
+                     if prediction_confidence >= confidence_threshold:
+                         st.write(f"Predicted Identity: **{predicted_class}**")
+                         st.write(f"Confidence: **{prediction_confidence:.2f}**")
+                     else:
+                         st.write("Face not recognized")
+                         st.write(f"Confidence: **{prediction_confidence:.2f}** (below {confidence_threshold:.0%})")
 
         else:
             st.warning("No faces detected in the captured image.")
