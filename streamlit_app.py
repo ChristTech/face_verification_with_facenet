@@ -107,7 +107,7 @@ if loaded_model is not None and encoder is not None and embedder is not None and
             file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
             image = cv2.imdecode(file_bytes, 1)
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            st.image(image_rgb, caption="Uploaded Image", use_column_width=True)
+            st.image(image_rgb, caption="Uploaded Image", use_container_width=True)
             st.subheader("Processing Results:")
             col_det, col_anti = st.columns(2)
             with col_det:
@@ -122,7 +122,7 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                     y1, y2, x1, x2 = max(0, y), min(image_rgb.shape[0], y + h), max(0, x), min(image_rgb.shape[1], x + w)
                     box_color = (255, 0, 0)
                     cv2.rectangle(image_with_box, (x1, y1), (x2, y2), box_color, 5)
-                    st.image(image_with_box, caption="Detected Face", use_column_width=True)
+                    st.image(image_with_box, caption="Detected Face", use_container_width=True)
                     face_rgb = image_rgb[y1:y2, x1:x2]
             with col_anti:
                 is_spoof = False
@@ -133,7 +133,7 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                         face_depth_region = depth_map[max(0, y):min(depth_map.shape[0], y+h), max(0, x):min(depth_map.shape[1], x+w)]
                         depth_map_normalized = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_U8C1)
                         depth_map_color = cv2.cvtColor(depth_map_normalized, cv2.COLOR_GRAY2RGB)
-                        st.image(depth_map_color, caption="Estimated Depth Map", use_column_width=True)
+                        st.image(depth_map_color, caption="Estimated Depth Map", use_container_width=True)
                         if face_depth_region.size > 0:
                             depth_variation = np.std(face_depth_region)
                             st.write(f"Depth standard deviation in face region: {depth_variation:.2f}")
@@ -180,10 +180,10 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                     image_for_redraw = cv2.imdecode(file_bytes, 1)
                     image_for_redraw_rgb = cv2.cvtColor(image_for_redraw, cv2.COLOR_BGR2RGB)
                     cv2.rectangle(image_for_redraw_rgb, (x1, y1), (x2, y2), box_color, 5)
-                    st.image(image_for_redraw_rgb, caption="Processed Face", use_column_width=True)
+                    st.image(image_for_redraw_rgb, caption="Processed Face", use_container_width=True)
                 elif len(results) > 0 and face_rgb.size > 0:
                     st.warning("Face not verified due to spoofing detection or anti-spoofing error.", icon="⚠️")
-                    st.image(image_with_box, caption="Detected Face (Spoof/Error)", use_column_width=True)
+                    st.image(image_with_box, caption="Detected Face (Spoof/Error)", use_container_width=True)
         else:
             st.warning("No faces detected in the image.", icon="⚠️")
     elif input_method == "Take Photo with Webcam":
@@ -207,7 +207,7 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                     y1, y2, x1, x2 = max(0, y), min(image_rgb.shape[0], y + h), max(0, x), min(image_rgb.shape[1], x + w)
                     box_color = (255, 0, 0)
                     cv2.rectangle(image_with_box, (x1, y1), (x2, y2), box_color, 5)
-                    st.image(image_with_box, caption="Detected Face", use_column_width=True)
+                    st.image(image_with_box, caption="Detected Face", use_container_width=True)
                     face_rgb = image_rgb[y1:y2, x1:x2]
             with col_anti:
                 is_spoof = False
@@ -218,7 +218,7 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                         face_depth_region = depth_map[max(0, y):min(depth_map.shape[0], y+h), max(0, x):min(depth_map.shape[1], x+w)]
                         depth_map_normalized = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_U8C1)
                         depth_map_color = cv2.cvtColor(depth_map_normalized, cv2.COLOR_GRAY2RGB)
-                        st.image(depth_map_color, caption="Estimated Depth Map", use_column_width=True)
+                        st.image(depth_map_color, caption="Estimated Depth Map", use_container_width=True)
                         if face_depth_region.size > 0:
                             depth_variation = np.std(face_depth_region)
                             st.write(f"Depth standard deviation in face region: {depth_variation:.2f}")
@@ -265,10 +265,10 @@ if loaded_model is not None and encoder is not None and embedder is not None and
                     image_for_redraw = cv2.imdecode(file_bytes, 1)
                     image_for_redraw_rgb = cv2.cvtColor(image_for_redraw, cv2.COLOR_BGR2RGB)
                     cv2.rectangle(image_for_redraw_rgb, (x1, y1), (x2, y2), box_color, 5)
-                    st.image(image_for_redraw_rgb, caption="Processed Face", use_column_width=True)
+                    st.image(image_for_redraw_rgb, caption="Processed Face", use_container_width=True)
                 elif len(results) > 0 and face_rgb.size > 0:
                     st.warning("Face not verified due to spoofing detection or anti-spoofing error.", icon="⚠️")
-                    st.image(image_with_box, caption="Detected Face (Spoof/Error)", use_column_width=True)
+                    st.image(image_with_box, caption="Detected Face (Spoof/Error)", use_container_width=True)
         else:
             st.warning("No faces detected in the captured image.", icon="⚠️")
 else:
